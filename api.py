@@ -157,7 +157,6 @@ class MethodRequest:
         return len(errors) == 0, errors or None
 
 
-
 def check_auth(request):
     if request.is_admin:
         digest = hashlib.sha512((datetime.datetime.now().strftime("%Y%m%d%H") + ADMIN_SALT).encode('utf-8')).hexdigest()
@@ -176,6 +175,15 @@ def method_handler(request, ctx, store):
     if check_auth(method_request):
         response = {"status": "success"}
         code = OK
+
+        if method_request.method == "save_interests":
+            client_id = method_request.arguments.get("client_id")
+            interests = method_request.arguments.get("interests", [])
+            if client_id:
+                store.cache_set(f"i:{client_id}", json.dumps(interests), 60 * 60)
+                response["message"] = "Interests saved successfully"
+            else:
+                return {"error": "Client ID is required"}, INVALID_REQUEST
     else:
         return {"error": "Unauthorized"}, FORBIDDEN
 
@@ -231,9 +239,17 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-p", "--port", action="store", type=int, default=8080)
     parser.add_argument("-l", "--log", action="store", default=None)
+    parser.add_argument("-s", "--store", action="store", help="Key-value store configuration")
     args = parser.parse_args()
     logging.basicConfig(filename=args.log, level=logging.INFO,
                         format='[%(asctime)s] %(levelname).1s %(message)s', datefmt='%Y.%m.%d %H:%M:%S')
+
+    if args.store:
+        from store import KeyValueStore
+
+        store = KeyValueStore(**json.loads(args.store))
+        MainHTTPHandler.store = store
+
     server = HTTPServer(("localhost", args.port), MainHTTPHandler)
     logging.info("Starting server at %s" % args.port)
     try:

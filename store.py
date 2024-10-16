@@ -23,18 +23,18 @@ class KeyValueStore:
                     socket_timeout=self.timeout,
                     decode_responses=True
                 )
-                connection.ping()  # Проверка подключения
+                connection.ping()
                 return connection
             except RedisError:
-                time.sleep(2)  # Задержка перед повторной попыткой
+                time.sleep(2)
         raise ConnectionError("Could not connect to Redis after multiple attempts.")
 
     def get(self, key):
         try:
             return self.connection.get(key)
         except RedisError:
-            self.connection = self.connect()  # Переподключение при ошибке
-            return self.get(key)  # Повторный запрос
+            self.connection = self.connect()
+            return self.get(key)
 
     def cache_get(self, key):
         return self.get(key)
@@ -43,5 +43,5 @@ class KeyValueStore:
         try:
             self.connection.setex(key, expire, value)
         except RedisError:
-            self.connection = self.connect()  # Переподключение при ошибке
-            self.cache_set(key, value, expire)  # Повторный запрос
+            self.connection = self.connect()
+            self.cache_set(key, value, expire)

@@ -15,49 +15,33 @@ def store():
 
 @pytest.fixture
 def kv_store(mocker):
-    """Fixture to create a KeyValueStore instance."""
     store = KeyValueStore(host='localhost', port=6379, db=0, retries=3, timeout=1)
     return store
 
 
 def test_cache_set(kv_store, mocker):
-    """Test cache_set method."""
     key = "test_key"
     value = "test_value"
     expire = 60
 
-    # Mock the redis connection's setex method
     kv_store.connection.setex = mocker.MagicMock(return_value=True)
-
     kv_store.cache_set(key, value, expire)
-
     kv_store.connection.setex.assert_called_once_with(key, expire, value)
 
 
 def test_cache_get_success(kv_store, mocker):
-    """Test cache_get method on success."""
     key = "test_key"
     expected_value = "test_value"
-
-    # Mock the redis connection's get method
     kv_store.connection.get = mocker.MagicMock(return_value=expected_value)
-
     result = kv_store.cache_get(key)
-
     assert result == expected_value
     kv_store.connection.get.assert_called_once_with(key)
 
 
 def test_cache_get_failure(kv_store, mocker):
-    """Test cache_get method on failure and retry."""
     key = "test_key"
-
-    # Mock the redis connection's get method to raise an error
     kv_store.connection.get = mocker.MagicMock(side_effect=Exception("Connection error"))
-
-    # Mock the reconnect method
     kv_store.connect = mocker.MagicMock(return_value=kv_store.connection)
-
     with pytest.raises(ConnectionError):
         kv_store.cache_get(key)
 
@@ -65,12 +49,9 @@ def test_cache_get_failure(kv_store, mocker):
 
 
 def test_get(kv_store, mocker):
-    """Test get method on success."""
     key = "test_key"
     expected_value = "test_value"
-
     kv_store.connection.get = mocker.MagicMock(return_value=expected_value)
-
     result = kv_store.get(key)
 
     assert result == expected_value
@@ -78,15 +59,9 @@ def test_get(kv_store, mocker):
 
 
 def test_get_reconnect(kv_store, mocker):
-    """Test get method with reconnect logic."""
     key = "test_key"
-
-    # Mock the connection.get to raise an error on the first call, then return a value on the second call
     kv_store.connection.get = mocker.MagicMock(side_effect=[Exception("Connection error"), "test_value"])
-
-    # Mock the reconnect method
     kv_store.connect = mocker.MagicMock(return_value=kv_store.connection)
-
     result = kv_store.get(key)
 
     assert result == "test_value"
